@@ -1,0 +1,341 @@
+
+<h2 class="sr-only">Rastreador de estadísticas de los 48 equipos del Mundial 2026 - captura los últimos 5 partidos y calcula la media por categoría.</h2>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+.app{padding:1rem 0}
+.header{margin-bottom:1.5rem}
+.header h1{font-size:22px;font-weight:500;color:var(--color-text-primary)}
+.header p{font-size:14px;color:var(--color-text-secondary);margin-top:4px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1.5rem;align-items:center}
+.controls select{flex:1;min-width:180px}
+.tab-bar{display:flex;gap:4px;margin-bottom:1rem;border-bottom:0.5px solid var(--color-border-tertiary);padding-bottom:0}
+.tab{padding:8px 16px;font-size:14px;cursor:pointer;border:none;background:none;color:var(--color-text-secondary);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.active{color:var(--color-text-primary);border-bottom-color:var(--color-text-primary);font-weight:500}
+.match-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:1.5rem}
+.match-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem}
+.match-card h3{font-size:14px;font-weight:500;color:var(--color-text-secondary);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.match-card h3 span{font-size:12px;background:var(--color-background-secondary);padding:2px 8px;border-radius:var(--border-radius-md)}
+.stat-row{display:grid;grid-template-columns:60px 1fr 60px;gap:6px;align-items:center;margin-bottom:6px}
+.stat-val{font-size:13px;font-weight:500;color:var(--color-text-primary);text-align:center}
+.stat-label{font-size:12px;color:var(--color-text-secondary);text-align:center;line-height:1.3}
+.stat-bar-wrap{height:4px;background:var(--color-background-secondary);border-radius:2px;overflow:hidden;position:relative}
+.stat-bar-left{height:100%;background:#7F77DD;position:absolute;right:0;border-radius:2px}
+.stat-bar-right{height:100%;background:#1D9E75;position:absolute;left:0;border-radius:2px}
+.averages-panel{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:1.25rem;margin-bottom:1.5rem}
+.averages-panel h2{font-size:16px;font-weight:500;margin-bottom:12px;color:var(--color-text-primary)}
+.avg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.avg-card{background:var(--color-background-primary);border-radius:var(--border-radius-md);padding:10px;text-align:center}
+.avg-card .label{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px}
+.avg-card .value{font-size:20px;font-weight:500;color:var(--color-text-primary)}
+.add-btn{width:100%;padding:10px;font-size:14px;cursor:pointer;background:var(--color-background-primary);border:0.5px dashed var(--color-border-secondary);border-radius:var(--border-radius-lg);color:var(--color-text-secondary);display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:1.5rem}
+.add-btn:hover{background:var(--color-background-secondary)}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:100}
+.modal{background:var(--color-background-primary);border-radius:var(--border-radius-lg);padding:1.5rem;width:90%;max-width:500px;max-height:85vh;overflow-y:auto}
+.modal h2{font-size:18px;font-weight:500;margin-bottom:1rem}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;align-items:center}
+.form-row label{font-size:13px;color:var(--color-text-secondary)}
+.form-row input{text-align:center}
+.modal-btns{display:flex;gap:8px;margin-top:1rem}
+.btn-primary{flex:1;padding:10px;background:var(--color-text-primary);color:var(--color-background-primary);border:none;border-radius:var(--border-radius-md);cursor:pointer;font-size:14px}
+.btn-secondary{flex:1;padding:10px;background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);cursor:pointer;font-size:14px;color:var(--color-text-primary)}
+.team-header{display:flex;align-items:center;gap:10px;margin-bottom:1.5rem}
+.team-flag{width:40px;height:28px;font-size:28px;line-height:1;display:flex;align-items:center}
+.team-name{font-size:20px;font-weight:500;color:var(--color-text-primary)}
+.team-conf{font-size:13px;color:var(--color-text-secondary)}
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--color-text-secondary);font-size:14px}
+.empty-state i{font-size:40px;display:block;margin-bottom:8px;opacity:0.4}
+.match-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.score-big{font-size:22px;font-weight:500;color:var(--color-text-primary)}
+.score-label{font-size:11px;color:var(--color-text-secondary);text-align:center}
+.vs-teams{font-size:13px;color:var(--color-text-secondary)}
+.delete-btn{font-size:11px;color:var(--color-text-secondary);cursor:pointer;background:none;border:none;opacity:0.5}
+.delete-btn:hover{opacity:1;color:#E24B4A}
+.groups-view{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.group-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+.group-card-header{padding:8px 12px;background:var(--color-background-secondary);font-size:13px;font-weight:500;color:var(--color-text-primary)}
+.group-team{display:flex;align-items:center;gap:8px;padding:7px 12px;border-top:0.5px solid var(--color-border-tertiary);cursor:pointer;font-size:13px;color:var(--color-text-primary)}
+.group-team:hover{background:var(--color-background-secondary)}
+.group-team .dot{width:6px;height:6px;border-radius:50%;background:var(--color-border-secondary);flex-shrink:0}
+.group-team.has-data .dot{background:#1D9E75}
+</style>
+
+<div class="app">
+  <div class="header">
+    <h1>⚽ Mundial 2026 — Estadísticas</h1>
+    <p>Registra los últimos 5 partidos de cada equipo para calcular la media por encuentro</p>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab active" onclick="setView('groups')">Grupos</button>
+    <button class="tab" onclick="setView('team')">Equipo seleccionado</button>
+  </div>
+
+  <div id="view-groups">
+    <div class="groups-view" id="groups-container"></div>
+  </div>
+
+  <div id="view-team" style="display:none">
+    <div class="controls">
+      <select id="team-select" onchange="selectTeam(this.value)">
+        <option value="">— Selecciona un equipo —</option>
+      </select>
+    </div>
+    <div id="team-content">
+      <div class="empty-state"><i class="ti ti-shield-half-filled" aria-hidden="true"></i>Selecciona un equipo para ver y editar sus estadísticas</div>
+    </div>
+  </div>
+</div>
+
+<div id="modal" style="display:none">
+  <div class="modal-backdrop" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h2 id="modal-title">Agregar partido</h2>
+      <p style="font-size:13px;color:var(--color-text-secondary);margin-bottom:1rem" id="modal-subtitle"></p>
+      <div id="modal-body"></div>
+      <div class="modal-btns">
+        <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button class="btn-primary" onclick="saveMatch()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const GROUPS = {
+  'A': ['México','Sudáfrica','Corea del Sur','Chequia'],
+  'B': ['Canadá','Bosnia y Herzegovina','Catar','Suiza'],
+  'C': ['Brasil','Marruecos','Escocia','Haití'],
+  'D': ['Estados Unidos','Australia','Paraguay','Turquía'],
+  'E': ['Alemania','Ecuador','Costa de Marfil','Curaçao'],
+  'F': ['Países Bajos','Japón','Túnez','Suecia'],
+  'G': ['Bélgica','Irán','Egipto','Nueva Zelanda'],
+  'H': ['España','Uruguay','Arabia Saudí','Cabo Verde'],
+  'I': ['Francia','Noruega','Senegal','Irak'],
+  'J': ['Argentina','Austria','Argelia','Jordania'],
+  'K': ['Portugal','Colombia','Uzbekistán','DR Congo'],
+  'L': ['Inglaterra','Croacia','Ghana','Panamá']
+};
+
+const CONF = {
+  'México':'CONCACAF','Canadá':'CONCACAF','Estados Unidos':'CONCACAF','Haití':'CONCACAF','Panamá':'CONCACAF','Curaçao':'CONCACAF',
+  'Argentina':'CONMEBOL','Brasil':'CONMEBOL','Colombia':'CONMEBOL','Ecuador':'CONMEBOL','Uruguay':'CONMEBOL','Paraguay':'CONMEBOL',
+  'Francia':'UEFA','España':'UEFA','Inglaterra':'UEFA','Portugal':'UEFA','Alemania':'UEFA','Países Bajos':'UEFA','Bélgica':'UEFA','Croacia':'UEFA','Suiza':'UEFA','Austria':'UEFA','Escocia':'UEFA','Noruega':'UEFA','Suecia':'UEFA','Turquía':'UEFA','Chequia':'UEFA','Bosnia y Herzegovina':'UEFA',
+  'Japón':'AFC','Irán':'AFC','Corea del Sur':'AFC','Australia':'AFC','Uzbekistán':'AFC','Jordania':'AFC','Catar':'AFC','Arabia Saudí':'AFC','Irak':'AFC',
+  'Marruecos':'CAF','Senegal':'CAF','Egipto':'CAF','Túnez':'CAF','Argelia':'CAF','Sudáfrica':'CAF','Costa de Marfil':'CAF','Ghana':'CAF','Cabo Verde':'CAF','DR Congo':'CAF',
+  'Nueva Zelanda':'OFC'
+};
+
+const STATS = [
+  {key:'goles_f',label:'Goles favor',icon:'ti-ball-football'},
+  {key:'goles_c',label:'Goles contra',icon:'ti-ball-football'},
+  {key:'ocasiones_f',label:'Grandes ocasiones favor',icon:'ti-flame'},
+  {key:'ocasiones_c',label:'Grandes ocasiones contra',icon:'ti-flame'},
+  {key:'tiros_f',label:'Tiros totales favor',icon:'ti-arrow-up'},
+  {key:'tiros_c',label:'Tiros totales contra',icon:'ti-arrow-up'},
+  {key:'paradas_f',label:'Paradas favor',icon:'ti-hand-stop'},
+  {key:'paradas_c',label:'Paradas contra',icon:'ti-hand-stop'},
+  {key:'corners_f',label:'Corners favor',icon:'ti-flag'},
+  {key:'corners_c',label:'Corners contra',icon:'ti-flag'},
+  {key:'faltas_f',label:'Faltas favor',icon:'ti-alert-triangle'},
+  {key:'faltas_c',label:'Faltas contra',icon:'ti-alert-triangle'},
+  {key:'entradas_f',label:'Entradas favor',icon:'ti-run'},
+  {key:'entradas_c',label:'Entradas contra',icon:'ti-run'},
+  {key:'tiros_libres_f',label:'Tiros libres favor',icon:'ti-circle'},
+  {key:'tiros_libres_c',label:'Tiros libres contra',icon:'ti-circle'},
+  {key:'amarillas_f',label:'Amarillas favor',icon:'ti-square'},
+  {key:'amarillas_c',label:'Amarillas contra',icon:'ti-square'},
+  {key:'rojas_f',label:'Rojas favor',icon:'ti-square-filled'},
+  {key:'rojas_c',label:'Rojas contra',icon:'ti-square-filled'},
+];
+
+const DISPLAY_STATS = [
+  {label:'Marcador',f:'goles_f',c:'goles_c'},
+  {label:'Grandes ocasiones',f:'ocasiones_f',c:'ocasiones_c'},
+  {label:'Tiros totales',f:'tiros_f',c:'tiros_c'},
+  {label:'Paradas',f:'paradas_f',c:'paradas_c'},
+  {label:'Corners',f:'corners_f',c:'corners_c'},
+  {label:'Faltas',f:'faltas_f',c:'faltas_c'},
+  {label:'Entradas',f:'entradas_f',c:'entradas_c'},
+  {label:'Tiros libres',f:'tiros_libres_f',c:'tiros_libres_c'},
+  {label:'Amarillas',f:'amarillas_f',c:'amarillas_c'},
+  {label:'Rojas',f:'rojas_f',c:'rojas_c'},
+];
+
+let data = {};
+let currentTeam = '';
+let editingIdx = null;
+
+function save(){try{localStorage.setItem('mundial26',JSON.stringify(data))}catch(e){}}
+function load(){try{const d=localStorage.getItem('mundial26');if(d)data=JSON.parse(d)}catch(e){}}
+load();
+
+function avg(arr, key){
+  if(!arr||!arr.length) return 0;
+  return arr.reduce((s,m)=>s+(m[key]||0),0)/arr.length;
+}
+
+function setView(v){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['groups','team'][i]===v));
+  document.getElementById('view-groups').style.display=v==='groups'?'':'none';
+  document.getElementById('view-team').style.display=v==='team'?'':'none';
+  if(v==='groups') renderGroups();
+}
+
+function renderGroups(){
+  const c=document.getElementById('groups-container');
+  c.innerHTML='';
+  Object.entries(GROUPS).forEach(([grp,teams])=>{
+    const gc=document.createElement('div');gc.className='group-card';
+    gc.innerHTML=`<div class="group-card-header">Grupo ${grp}</div>`;
+    teams.forEach(team=>{
+      const matches=(data[team]||[]).length;
+      const row=document.createElement('div');
+      row.className='group-team'+(matches>0?' has-data':'');
+      row.innerHTML=`<span class="dot"></span><span style="flex:1">${team}</span><span style="font-size:11px;color:var(--color-text-secondary)">${matches}/5 partidos</span>`;
+      row.onclick=()=>{
+        document.getElementById('team-select').value=team;
+        selectTeam(team);
+        setView('team');
+      };
+      gc.appendChild(row);
+    });
+    c.appendChild(gc);
+  });
+}
+
+function selectTeam(team){
+  currentTeam=team;
+  renderTeam();
+}
+
+function renderTeam(){
+  const tc=document.getElementById('team-content');
+  if(!currentTeam){tc.innerHTML='<div class="empty-state"><i class="ti ti-shield-half-filled" aria-hidden="true"></i>Selecciona un equipo</div>';return;}
+  const matches=data[currentTeam]||[];
+  let grp='';
+  Object.entries(GROUPS).forEach(([g,ts])=>{if(ts.includes(currentTeam))grp=g;});
+
+  let html=`<div class="team-header">
+    <div>
+      <div class="team-name">${currentTeam}</div>
+      <div class="team-conf">${CONF[currentTeam]||''} · Grupo ${grp}</div>
+    </div>
+  </div>`;
+
+  if(matches.length>0){
+    html+=`<div class="averages-panel">
+      <h2><i class="ti ti-chart-bar" aria-hidden="true"></i> Media de ${matches.length} partido${matches.length!==1?'s':''}</h2>
+      <div class="avg-grid">`;
+    DISPLAY_STATS.forEach(s=>{
+      const vf=avg(matches,s.f),vc=avg(matches,s.c);
+      html+=`<div class="avg-card"><div class="label">${s.label}</div><div class="value" style="font-size:16px">${vf.toFixed(1)} – ${vc.toFixed(1)}</div></div>`;
+    });
+    html+=`</div></div>`;
+  }
+
+  html+=`<button class="add-btn" onclick="openModal()" ${matches.length>=5?'disabled style="opacity:0.4;cursor:not-allowed"':''}>
+    <i class="ti ti-plus" aria-hidden="true"></i> ${matches.length>=5?'Máximo 5 partidos alcanzado':'Agregar partido'}
+  </button>`;
+
+  if(matches.length===0){
+    html+=`<div class="empty-state"><i class="ti ti-calendar" aria-hidden="true"></i>Sin partidos registrados aún.<br>Agrega hasta 5 partidos.</div>`;
+  } else {
+    html+=`<div class="match-grid">`;
+    matches.forEach((m,i)=>{
+      html+=`<div class="match-card">
+        <h3>Partido ${i+1} <span>${m.rival||'Rival'}</span></h3>
+        <div class="match-meta">
+          <div style="text-align:center">
+            <div class="score-big" style="color:#534AB7">${m.goles_f||0}</div>
+            <div class="score-label">${currentTeam}</div>
+          </div>
+          <div style="font-size:20px;color:var(--color-text-secondary)">–</div>
+          <div style="text-align:center">
+            <div class="score-big" style="color:#0F6E56">${m.goles_c||0}</div>
+            <div class="score-label">${m.rival||'Rival'}</div>
+          </div>
+          <button class="delete-btn" onclick="deleteMatch(${i})" aria-label="Eliminar partido"><i class="ti ti-trash"></i></button>
+        </div>`;
+      DISPLAY_STATS.slice(1).forEach(s=>{
+        const vf=m[s.f]||0,vc=m[s.c]||0,total=vf+vc||1;
+        const pf=Math.round(vf/total*100),pc=Math.round(vc/total*100);
+        html+=`<div class="stat-row">
+          <div class="stat-val" style="color:#534AB7">${vf}</div>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <div class="stat-label">${s.label}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;height:4px">
+              <div class="stat-bar-wrap"><div class="stat-bar-left" style="width:${pf}%"></div></div>
+              <div class="stat-bar-wrap"><div class="stat-bar-right" style="width:${pc}%"></div></div>
+            </div>
+          </div>
+          <div class="stat-val" style="color:#0F6E56">${vc}</div>
+        </div>`;
+      });
+      html+=`<button class="btn-secondary" style="width:100%;margin-top:8px;font-size:12px" onclick="openModal(${i})">Editar</button>`;
+      html+=`</div>`;
+    });
+    html+=`</div>`;
+  }
+
+  tc.innerHTML=html;
+}
+
+function openModal(idx){
+  editingIdx=(idx!==undefined?idx:null);
+  const m=editingIdx!==null?(data[currentTeam]||[])[editingIdx]:{};
+  const matchNum=editingIdx!==null?editingIdx+1:((data[currentTeam]||[]).length+1);
+  document.getElementById('modal-title').textContent=editingIdx!==null?`Editar partido ${matchNum}`:`Agregar partido ${matchNum}`;
+  document.getElementById('modal-subtitle').textContent=currentTeam;
+  let body=`<div class="form-row"><label>Rival</label><input type="text" id="f-rival" value="${m.rival||''}" placeholder="Nombre del rival"></div>`;
+  DISPLAY_STATS.forEach(s=>{
+    body+=`<div class="form-row">
+      <label>${s.label}</label>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center">
+        <input type="number" id="f-${s.f}" min="0" value="${m[s.f]||0}" style="text-align:center">
+        <span style="color:var(--color-text-secondary);font-size:14px">–</span>
+        <input type="number" id="f-${s.c}" min="0" value="${m[s.c]||0}" style="text-align:center">
+      </div>
+    </div>`;
+  });
+  document.getElementById('modal-body').innerHTML=body;
+  document.getElementById('modal').style.display='flex';
+}
+
+function closeModal(e){
+  if(!e||e.target===document.getElementById('modal')||!e)document.getElementById('modal').style.display='none';
+}
+
+function saveMatch(){
+  const match={rival:document.getElementById('f-rival').value||'Rival'};
+  DISPLAY_STATS.forEach(s=>{
+    match[s.f]=parseInt(document.getElementById('f-'+s.f).value)||0;
+    match[s.c]=parseInt(document.getElementById('f-'+s.c).value)||0;
+  });
+  if(!data[currentTeam])data[currentTeam]=[];
+  if(editingIdx!==null)data[currentTeam][editingIdx]=match;
+  else data[currentTeam].push(match);
+  save();
+  document.getElementById('modal').style.display='none';
+  renderTeam();
+  renderGroups();
+}
+
+function deleteMatch(idx){
+  if(!confirm('¿Eliminar este partido?'))return;
+  data[currentTeam].splice(idx,1);
+  save();
+  renderTeam();
+  renderGroups();
+}
+
+const sel=document.getElementById('team-select');
+Object.entries(GROUPS).forEach(([g,ts])=>{
+  const og=document.createElement('optgroup');og.label=`Grupo ${g}`;
+  ts.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;og.appendChild(o);});
+  sel.appendChild(og);
+});
+
+renderGroups();
+</script>
